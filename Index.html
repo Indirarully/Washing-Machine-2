@@ -1,596 +1,578 @@
-import React, { useState, useEffect } from 'react';
-import { Power, Droplets, Wind, AlertCircle, FileText, Download, Play, Pause } from 'lucide-react';
-
-const WashingMachineSCADA = () => {
-  const [machines, setMachines] = useState([
-    { id: 1, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false },
-    { id: 2, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false },
-    { id: 3, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false },
-    { id: 4, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false }
-  ]);
-
-  const [systemStats, setSystemStats] = useState({
-    totalCycles: 0,
-    waterUsage: 0,
-    activeMachines: 0
-  });
-
-  const [reportData, setReportData] = useState([]);
-  const [autoMode, setAutoMode] = useState(false);
-  const [autoInterval, setAutoInterval] = useState(null);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setMachines(prev => prev.map(machine => {
-        if (machine.status === 'running') {
-          let newMachine = { ...machine };
-          
-          // Fase Pengisian Air
-          if (machine.phase === 'filling' && machine.waterLevel < 100) {
-            newMachine.waterLevel = Math.min(100, machine.waterLevel + 2);
-            newMachine.timer = machine.timer + 1;
-            if (newMachine.waterLevel >= 100) {
-              newMachine.phase = 'washing';
-              newMachine.timer = 0;
-              newMachine.detergent = true;
-            }
-          }
-          
-          // Fase Pencucian
-          else if (machine.phase === 'washing') {
-            newMachine.rpm = 400 + Math.sin(machine.timer / 5) * 50;
-            newMachine.timer = machine.timer + 1;
-            if (machine.timer >= 60) {
-              newMachine.phase = 'draining';
-              newMachine.timer = 0;
-              newMachine.rpm = 0;
-            }
-          }
-          
-          // Fase Pembuangan Air
-          else if (machine.phase === 'draining') {
-            newMachine.waterLevel = Math.max(0, machine.waterLevel - 3);
-            newMachine.timer = machine.timer + 1;
-            newMachine.detergent = false;
-            if (newMachine.waterLevel <= 0) {
-              newMachine.phase = 'spinning';
-              newMachine.timer = 0;
-            }
-          }
-          
-          // Fase Pengeringan/Spinning
-          else if (machine.phase === 'spinning') {
-            newMachine.rpm = Math.min(1200, machine.rpm + 20);
-            newMachine.timer = machine.timer + 1;
-            if (machine.timer >= 45) {
-              newMachine.status = 'complete';
-              newMachine.phase = 'complete';
-              newMachine.rpm = 0;
-              newMachine.timer = 0;
-              setSystemStats(s => ({ 
-                ...s, 
-                totalCycles: s.totalCycles + 1,
-                waterUsage: s.waterUsage + 75
-              }));
-              
-              // Add to report
-              const timestamp = new Date().toLocaleString('id-ID');
-              setReportData(prev => [...prev, {
-                id: prev.length + 1,
-                machineId: machine.id,
-                timestamp: timestamp,
-                waterUsed: 75,
-                duration: 105, // total durasi siklus
-                status: 'Success'
-              }]);
-            }
-          }
-          
-          return newMachine;
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCADA Monitoring - Mesin Cuci 4 Tabung</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
-        return machine;
-      }));
-    }, 100);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const active = machines.filter(m => m.status === 'running').length;
-    setSystemStats(prev => ({ ...prev, activeMachines: active }));
-  }, [machines]);
-
-  const startMachine = (id) => {
-    setMachines(prev => prev.map(m => 
-      m.id === id ? { ...m, status: 'running', phase: 'filling', waterLevel: 0, timer: 0, rpm: 0, detergent: false } : m
-    ));
-  };
-
-  const stopMachine = (id) => {
-    setMachines(prev => prev.map(m => 
-      m.id === id ? { ...m, status: 'idle', phase: 'idle', waterLevel: 0, timer: 0, rpm: 0, detergent: false } : m
-    ));
-  };
-
-  const resetMachine = (id) => {
-    setMachines(prev => prev.map(m => 
-      m.id === id ? { ...m, status: 'idle', phase: 'idle', waterLevel: 0, timer: 0, rpm: 0, detergent: false } : m
-    ));
-  };
-
-  const getPhaseColor = (phase) => {
-    switch(phase) {
-      case 'filling': return 'bg-blue-500';
-      case 'washing': return 'bg-purple-500';
-      case 'draining': return 'bg-orange-500';
-      case 'spinning': return 'bg-green-500';
-      case 'complete': return 'bg-gray-500';
-      default: return 'bg-gray-300';
-    }
-  };
-
-  const getPhaseText = (phase) => {
-    switch(phase) {
-      case 'filling': return 'Pengisian Air';
-      case 'washing': return 'Pencucian';
-      case 'draining': return 'Pembuangan';
-      case 'spinning': return 'Pengeringan';
-      case 'complete': return 'Selesai';
-      default: return 'Standby';
-    }
-  };
-
-  const exportReport = () => {
-    const csv = [
-      ['No', 'Mesin', 'Waktu', 'Air (L)', 'Durasi (s)', 'Status'],
-      ...reportData.map(r => [r.id, `Mesin #${r.machineId}`, r.timestamp, r.waterUsed, r.duration, r.status])
-    ].map(row => row.join(',')).join('\n');
-    
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `laporan-mesin-cuci-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-  };
-
-  const clearReport = () => {
-    if (confirm('Hapus semua data laporan?')) {
-      setReportData([]);
-    }
-  };
-
-  const toggleAutoMode = () => {
-    setAutoMode(!autoMode);
-  };
-
-  useEffect(() => {
-    if (autoMode) {
-      const interval = setInterval(() => {
-        setMachines(prev => {
-          // Cari mesin yang idle atau complete
-          const availableMachines = prev.filter(m => m.status === 'idle' || m.status === 'complete');
-          
-          if (availableMachines.length > 0) {
-            // Pilih mesin pertama yang tersedia
-            const selectedMachine = availableMachines[0];
-            
-            return prev.map(m => 
-              m.id === selectedMachine.id 
-                ? { ...m, status: 'running', phase: 'filling', waterLevel: 0, timer: 0, rpm: 0, detergent: false }
-                : m
-            );
-          }
-          
-          return prev;
-        });
-      }, 3000); // Cek setiap 3 detik
-      
-      setAutoInterval(interval);
-      
-      return () => clearInterval(interval);
-    } else {
-      if (autoInterval) {
-        clearInterval(autoInterval);
-        setAutoInterval(null);
-      }
-    }
-  }, [autoMode]);
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-6">
-      {/* Header */}
-      <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
-        <div>
-          <h1 className="text-4xl font-bold text-white mb-2">SCADA Monitoring System</h1>
-          <p className="text-blue-200">Mesin Cuci Industri - 4 Unit Tabung</p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={toggleAutoMode}
-            className={`${autoMode ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center gap-2 transition-colors`}
-          >
-            {autoMode ? (
-              <>
-                <Pause size={20} />
-                Stop Auto
-              </>
-            ) : (
-              <>
-                <Play size={20} />
-                Auto Mode
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* System Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg p-5 shadow-lg">
-          <div className="flex items-center justify-between">
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-spin { animation: spin 1s linear infinite; }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .animate-bounce { animation: bounce 1s ease-in-out infinite; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 min-h-screen">
+    <div class="p-6" id="app">
+        <!-- Header -->
+        <div class="mb-6 flex justify-between items-center flex-wrap gap-4">
             <div>
-              <p className="text-blue-100 text-sm">Mesin Aktif</p>
-              <p className="text-3xl font-bold text-white">{systemStats.activeMachines}/4</p>
+                <h1 class="text-4xl font-bold text-white mb-2">SCADA Monitoring System</h1>
+                <p class="text-blue-200">Mesin Cuci Industri - 4 Unit Tabung</p>
             </div>
-            <Power className="text-white" size={40} />
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-br from-cyan-600 to-cyan-700 rounded-lg p-5 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-cyan-100 text-sm">Total Siklus</p>
-              <p className="text-3xl font-bold text-white">{systemStats.totalCycles}</p>
-            </div>
-            <Droplets className="text-white" size={40} />
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-br from-teal-600 to-teal-700 rounded-lg p-5 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-teal-100 text-sm">Pemakaian Air</p>
-              <p className="text-3xl font-bold text-white">{systemStats.waterUsage}L</p>
-            </div>
-            <Wind className="text-white" size={40} />
-          </div>
-        </div>
-
-        <div className={`bg-gradient-to-br ${autoMode ? 'from-green-600 to-green-700' : 'from-gray-600 to-gray-700'} rounded-lg p-5 shadow-lg`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className={`${autoMode ? 'text-green-100' : 'text-gray-100'} text-sm`}>Mode Otomatis</p>
-              <p className="text-3xl font-bold text-white">{autoMode ? 'AKTIF' : 'OFF'}</p>
-            </div>
-            {autoMode ? <Play className="text-white animate-pulse" size={40} /> : <Pause className="text-white" size={40} />}
-          </div>
-        </div>
-      </div>
-
-      {/* Machines Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {machines.map(machine => (
-          <div key={machine.id} className="bg-white rounded-xl shadow-2xl overflow-hidden">
-            {/* Machine Header */}
-            <div className={`${getPhaseColor(machine.phase)} p-4 flex justify-between items-center`}>
-              <h2 className="text-xl font-bold text-white">Mesin Cuci #{machine.id}</h2>
-              <span className="bg-white bg-opacity-30 px-3 py-1 rounded-full text-white text-sm font-semibold">
-                {getPhaseText(machine.phase)}
-              </span>
-            </div>
-
-            {/* Machine Body */}
-            <div className="p-6">
-              {/* Animated Washing Machine Drum */}
-              <div className="mb-6 flex justify-center">
-                <div className="relative w-48 h-48">
-                  {/* Outer Machine Body */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-400 rounded-3xl shadow-xl"></div>
-                  
-                  {/* Machine Door Frame */}
-                  <div className="absolute inset-4 bg-gradient-to-br from-gray-700 to-gray-800 rounded-full shadow-inner"></div>
-                  
-                  {/* Glass Door */}
-                  <div className="absolute inset-6 bg-gradient-to-br from-blue-100 to-blue-50 rounded-full overflow-hidden border-4 border-gray-600 shadow-lg">
-                    {/* Water Level */}
-                    <div 
-                      className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-400 to-blue-300 transition-all duration-300"
-                      style={{ height: `${machine.waterLevel}%` }}
-                    >
-                      <div className="absolute inset-0 opacity-30">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-white animate-pulse"></div>
-                        <div className="absolute top-2 left-0 w-full h-1 bg-white animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                      </div>
-                    </div>
-                    
-                    {/* Rotating Drum */}
-                    <div 
-                      className="absolute inset-2 rounded-full flex items-center justify-center"
-                      style={{ 
-                        transform: machine.status === 'running' ? `rotate(${machine.timer * (machine.rpm / 10)}deg)` : 'rotate(0deg)',
-                        transition: 'transform 0.1s linear'
-                      }}
-                    >
-                      {/* Drum Holes Pattern */}
-                      {[...Array(12)].map((_, i) => (
-                        <div
-                          key={i}
-                          className="absolute w-3 h-3 bg-gray-400 rounded-full opacity-40"
-                          style={{
-                            top: '50%',
-                            left: '50%',
-                            transform: `rotate(${i * 30}deg) translateY(-30px)`
-                          }}
-                        ></div>
-                      ))}
-                      
-                      {/* Center Circle */}
-                      <div className="w-8 h-8 bg-gray-500 rounded-full opacity-50"></div>
-                    </div>
-                    
-                    {/* Bubbles when washing */}
-                    {machine.phase === 'washing' && machine.detergent && (
-                      <>
-                        {[...Array(8)].map((_, i) => (
-                          <div
-                            key={i}
-                            className="absolute bg-white rounded-full opacity-60 animate-bounce"
-                            style={{
-                              width: `${Math.random() * 10 + 5}px`,
-                              height: `${Math.random() * 10 + 5}px`,
-                              left: `${Math.random() * 80 + 10}%`,
-                              bottom: `${Math.random() * 60 + 20}%`,
-                              animationDelay: `${Math.random() * 2}s`,
-                              animationDuration: `${Math.random() * 2 + 1}s`
-                            }}
-                          ></div>
-                        ))}
-                      </>
-                    )}
-                    
-                    {/* Spinning Effect */}
-                    {machine.phase === 'spinning' && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 animate-spin"></div>
-                    )}
-                  </div>
-                  
-                  {/* Control Panel Indicator */}
-                  <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1">
-                    <div className={`w-2 h-2 rounded-full ${machine.status === 'running' ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div>
-                    <div className={`w-2 h-2 rounded-full ${machine.status === 'complete' ? 'bg-blue-400 animate-pulse' : 'bg-gray-400'}`}></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Water Level Indicator */}
-              <div className="mb-6">
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-semibold text-gray-700">Level Air</span>
-                  <span className="text-sm font-bold text-blue-600">{Math.round(machine.waterLevel)}%</span>
-                </div>
-                <div className="h-8 bg-gray-200 rounded-full overflow-hidden relative">
-                  <div 
-                    className="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-300 flex items-center justify-center"
-                    style={{ width: `${machine.waterLevel}%` }}
-                  >
-                    {machine.waterLevel > 20 && (
-                      <Droplets className="text-white animate-pulse" size={20} />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Process Info Grid */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Kecepatan Putar</p>
-                  <p className="text-xl font-bold text-gray-800">{Math.round(machine.rpm)} RPM</p>
-                </div>
-                
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Timer Fase</p>
-                  <p className="text-xl font-bold text-gray-800">{machine.timer}s</p>
-                </div>
-              </div>
-
-              {/* Status Indicators */}
-              <div className="flex gap-3 mb-6">
-                <div className={`flex-1 p-3 rounded-lg ${machine.detergent ? 'bg-purple-100' : 'bg-gray-100'}`}>
-                  <p className="text-xs text-gray-600">Detergen</p>
-                  <p className="font-bold text-sm">{machine.detergent ? 'AKTIF' : 'OFF'}</p>
-                </div>
-                
-                <div className={`flex-1 p-3 rounded-lg ${machine.status === 'running' ? 'bg-green-100' : machine.status === 'complete' ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                  <p className="text-xs text-gray-600">Status</p>
-                  <p className="font-bold text-sm uppercase">{machine.status === 'complete' ? 'SELESAI' : machine.status}</p>
-                </div>
-              </div>
-
-              {/* Process Timeline */}
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-semibold text-gray-600">Proses Siklus</span>
-                </div>
-                <div className="flex gap-1">
-                  <div className={`flex-1 h-2 rounded ${machine.phase === 'filling' || machine.phase === 'washing' || machine.phase === 'draining' || machine.phase === 'spinning' || machine.phase === 'complete' ? 'bg-blue-500' : 'bg-gray-200'}`} title="Pengisian"></div>
-                  <div className={`flex-1 h-2 rounded ${machine.phase === 'washing' || machine.phase === 'draining' || machine.phase === 'spinning' || machine.phase === 'complete' ? 'bg-purple-500' : 'bg-gray-200'}`} title="Pencucian"></div>
-                  <div className={`flex-1 h-2 rounded ${machine.phase === 'draining' || machine.phase === 'spinning' || machine.phase === 'complete' ? 'bg-orange-500' : 'bg-gray-200'}`} title="Pembuangan"></div>
-                  <div className={`flex-1 h-2 rounded ${machine.phase === 'spinning' || machine.phase === 'complete' ? 'bg-green-500' : 'bg-gray-200'}`} title="Pengeringan"></div>
-                </div>
-              </div>
-
-              {/* Control Buttons */}
-              <div className="flex gap-3">
-                {machine.status === 'idle' && (
-                  <button
-                    onClick={() => startMachine(machine.id)}
-                    disabled={autoMode}
-                    className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                  >
-                    START
-                  </button>
-                )}
-                
-                {machine.status === 'running' && (
-                  <button
-                    onClick={() => stopMachine(machine.id)}
-                    disabled={autoMode}
-                    className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                  >
-                    STOP
-                  </button>
-                )}
-                
-                {machine.status === 'complete' && (
-                  <button
-                    onClick={() => resetMachine(machine.id)}
-                    disabled={autoMode}
-                    className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                  >
-                    RESET
-                  </button>
-                )}
-              </div>
-
-              {/* Auto Mode Notice */}
-              {autoMode && (
-                <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
-                  <Play className="text-green-600" size={20} />
-                  <span className="text-sm text-green-800 font-semibold">Mode otomatis aktif - Kontrol manual dinonaktifkan</span>
-                </div>
-              )}
-
-              {/* Alert for Complete */}
-              {machine.status === 'complete' && (
-                <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
-                  <AlertCircle className="text-green-600" size={20} />
-                  <span className="text-sm text-green-800 font-semibold">Siklus pencucian selesai!</span>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Legend */}
-      <div className="mt-6 bg-white rounded-lg p-4 shadow-lg">
-        <h3 className="font-bold text-gray-800 mb-3">Fase Proses:</h3>
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-500 rounded"></div>
-            <span className="text-sm text-gray-700">Pengisian Air</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-purple-500 rounded"></div>
-            <span className="text-sm text-gray-700">Pencucian</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-orange-500 rounded"></div>
-            <span className="text-sm text-gray-700">Pembuangan Air</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-500 rounded"></div>
-            <span className="text-sm text-gray-700">Pengeringan</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Report Section */}
-      <div className="mt-6 bg-white rounded-xl shadow-2xl overflow-hidden">
-        {/* Report Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-white mb-1">Laporan Operasional Mesin Cuci</h2>
-            <p className="text-blue-100">Data Siklus Pencucian Real-time</p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={clearReport}
-              disabled={reportData.length === 0}
-              className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm"
-            >
-              Hapus Data
+            <button id="autoModeBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center gap-2 transition-colors">
+                <span id="autoModeIcon">▶</span>
+                <span id="autoModeText">Auto Mode</span>
             </button>
-            <button
-              onClick={exportReport}
-              disabled={reportData.length === 0}
-              className="bg-green-500 hover:bg-green-600 disabled:bg-green-300 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors text-sm"
-            >
-              <Download size={18} />
-              Export CSV
-            </button>
-          </div>
         </div>
 
-        {/* Report Summary */}
-        <div className="p-6 bg-gray-50 border-b">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-lg shadow">
-              <p className="text-sm text-gray-600 mb-1">Total Siklus</p>
-              <p className="text-2xl font-bold text-blue-600">{reportData.length}</p>
+        <!-- System Statistics -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="statsContainer"></div>
+
+        <!-- Machines Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="machinesContainer"></div>
+
+        <!-- Legend -->
+        <div class="mt-6 bg-white rounded-lg p-4 shadow-lg">
+            <h3 class="font-bold text-gray-800 mb-3">Fase Proses:</h3>
+            <div class="flex flex-wrap gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-blue-500 rounded"></div>
+                    <span class="text-sm text-gray-700">Pengisian Air</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-purple-500 rounded"></div>
+                    <span class="text-sm text-gray-700">Pencucian</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-orange-500 rounded"></div>
+                    <span class="text-sm text-gray-700">Pembuangan Air</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-green-500 rounded"></div>
+                    <span class="text-sm text-gray-700">Pengeringan</span>
+                </div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <p className="text-sm text-gray-600 mb-1">Total Air</p>
-              <p className="text-2xl font-bold text-cyan-600">{reportData.reduce((acc, r) => acc + r.waterUsed, 0)} L</p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <p className="text-sm text-gray-600 mb-1">Rata-rata Durasi</p>
-              <p className="text-2xl font-bold text-green-600">
-                {reportData.length > 0 ? Math.round(reportData.reduce((acc, r) => acc + r.duration, 0) / reportData.length) : 0}s
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <p className="text-sm text-gray-600 mb-1">Success Rate</p>
-              <p className="text-2xl font-bold text-purple-600">100%</p>
-            </div>
-          </div>
         </div>
 
-        {/* Report Table */}
-        <div className="p-6 max-h-96 overflow-auto">
-          {reportData.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText size={48} className="mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500 text-lg">Belum ada data siklus pencucian</p>
-              <p className="text-gray-400 text-sm mt-2">Mulai mesin untuk mencatat data</p>
+        <!-- Report Section -->
+        <div class="mt-6 bg-white rounded-xl shadow-2xl overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 p-6 flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-white mb-1">Laporan Operasional Mesin Cuci</h2>
+                    <p class="text-blue-100">Data Siklus Pencucian Real-time</p>
+                </div>
+                <div class="flex gap-3">
+                    <button id="clearReportBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">
+                        Hapus Data
+                    </button>
+                    <button id="exportReportBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors text-sm">
+                        ⬇ Export CSV
+                    </button>
+                </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="sticky top-0 bg-white">
-                  <tr className="bg-gray-100 border-b-2 border-gray-300">
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">No</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Mesin</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Waktu Selesai</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Air Digunakan</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Durasi</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reportData.slice().reverse().map((record, index) => (
-                    <tr key={record.id} className="border-b hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-gray-700">{reportData.length - index}</td>
-                      <td className="px-4 py-3 text-sm font-semibold text-gray-800">Mesin #{record.machineId}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{record.timestamp}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{record.waterUsed} Liter</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{record.duration} detik</td>
-                      <td className="px-4 py-3">
-                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
-                          {record.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+            <div class="p-6 bg-gray-50 border-b">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="reportSummary"></div>
             </div>
-          )}
+
+            <div class="p-6 max-h-96 overflow-auto" id="reportTableContainer"></div>
         </div>
-      </div>
     </div>
-  );
-};
 
-export default WashingMachineSCADA;
+    <script>
+        // State Management
+        let machines = [
+            { id: 1, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false },
+            { id: 2, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false },
+            { id: 3, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false },
+            { id: 4, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false }
+        ];
+
+        let systemStats = {
+            totalCycles: 0,
+            waterUsage: 0,
+            activeMachines: 0
+        };
+
+        let reportData = [];
+        let autoMode = false;
+        let autoInterval = null;
+
+        // Utility Functions
+        function getPhaseColor(phase) {
+            const colors = {
+                'filling': 'bg-blue-500',
+                'washing': 'bg-purple-500',
+                'draining': 'bg-orange-500',
+                'spinning': 'bg-green-500',
+                'complete': 'bg-gray-500'
+            };
+            return colors[phase] || 'bg-gray-300';
+        }
+
+        function getPhaseText(phase) {
+            const texts = {
+                'filling': 'Pengisian Air',
+                'washing': 'Pencucian',
+                'draining': 'Pembuangan',
+                'spinning': 'Pengeringan',
+                'complete': 'Selesai'
+            };
+            return texts[phase] || 'Standby';
+        }
+
+        // Machine Control Functions
+        function startMachine(id) {
+            if (autoMode) return;
+            machines = machines.map(m => 
+                m.id === id ? { ...m, status: 'running', phase: 'filling', waterLevel: 0, timer: 0, rpm: 0, detergent: false } : m
+            );
+            render();
+        }
+
+        function stopMachine(id) {
+            if (autoMode) return;
+            machines = machines.map(m => 
+                m.id === id ? { ...m, status: 'idle', phase: 'idle', waterLevel: 0, timer: 0, rpm: 0, detergent: false } : m
+            );
+            render();
+        }
+
+        function resetMachine(id) {
+            if (autoMode) return;
+            machines = machines.map(m => 
+                m.id === id ? { ...m, status: 'idle', phase: 'idle', waterLevel: 0, timer: 0, rpm: 0, detergent: false } : m
+            );
+            render();
+        }
+
+        // Auto Mode Functions
+        function toggleAutoMode() {
+            autoMode = !autoMode;
+            if (autoMode) {
+                startAutoMode();
+            } else {
+                stopAutoMode();
+            }
+            render();
+        }
+
+        function startAutoMode() {
+            if (autoInterval) clearInterval(autoInterval);
+            autoInterval = setInterval(() => {
+                const availableMachines = machines.filter(m => m.status === 'idle' || m.status === 'complete');
+                if (availableMachines.length > 0) {
+                    const selectedMachine = availableMachines[0];
+                    machines = machines.map(m => 
+                        m.id === selectedMachine.id 
+                            ? { ...m, status: 'running', phase: 'filling', waterLevel: 0, timer: 0, rpm: 0, detergent: false }
+                            : m
+                    );
+                    render();
+                }
+            }, 3000);
+        }
+
+        function stopAutoMode() {
+            if (autoInterval) {
+                clearInterval(autoInterval);
+                autoInterval = null;
+            }
+        }
+
+        // Report Functions
+        function exportReport() {
+            if (reportData.length === 0) return;
+            
+            const csv = [
+                ['No', 'Mesin', 'Waktu', 'Air (L)', 'Durasi (s)', 'Status'],
+                ...reportData.map((r, i) => [i + 1, `Mesin #${r.machineId}`, r.timestamp, r.waterUsed, r.duration, r.status])
+            ].map(row => row.join(',')).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `laporan-mesin-cuci-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        function clearReport() {
+            if (reportData.length === 0) return;
+            if (confirm('Hapus semua data laporan?')) {
+                reportData = [];
+                render();
+            }
+        }
+
+        // Render Functions
+        function renderStats() {
+            const activeMachines = machines.filter(m => m.status === 'running').length;
+            systemStats.activeMachines = activeMachines;
+
+            const statsContainer = document.getElementById('statsContainer');
+            statsContainer.innerHTML = `
+                <div class="bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg p-5 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-blue-100 text-sm">Mesin Aktif</p>
+                            <p class="text-3xl font-bold text-white">${activeMachines}/4</p>
+                        </div>
+                        <span class="text-white text-4xl">⚡</span>
+                    </div>
+                </div>
+                
+                <div class="bg-gradient-to-br from-cyan-600 to-cyan-700 rounded-lg p-5 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-cyan-100 text-sm">Total Siklus</p>
+                            <p class="text-3xl font-bold text-white">${systemStats.totalCycles}</p>
+                        </div>
+                        <span class="text-white text-4xl">💧</span>
+                    </div>
+                </div>
+                
+                <div class="bg-gradient-to-br from-teal-600 to-teal-700 rounded-lg p-5 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-teal-100 text-sm">Pemakaian Air</p>
+                            <p class="text-3xl font-bold text-white">${systemStats.waterUsage}L</p>
+                        </div>
+                        <span class="text-white text-4xl">🌊</span>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br ${autoMode ? 'from-green-600 to-green-700' : 'from-gray-600 to-gray-700'} rounded-lg p-5 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="${autoMode ? 'text-green-100' : 'text-gray-100'} text-sm">Mode Otomatis</p>
+                            <p class="text-3xl font-bold text-white">${autoMode ? 'AKTIF' : 'OFF'}</p>
+                        </div>
+                        <span class="text-white text-4xl ${autoMode ? 'animate-pulse' : ''}">${autoMode ? '▶' : '⏸'}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMachines() {
+            const machinesContainer = document.getElementById('machinesContainer');
+            machinesContainer.innerHTML = machines.map(machine => `
+                <div class="bg-white rounded-xl shadow-2xl overflow-hidden">
+                    <div class="${getPhaseColor(machine.phase)} p-4 flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-white">Mesin Cuci #${machine.id}</h2>
+                        <span class="bg-white bg-opacity-30 px-3 py-1 rounded-full text-white text-sm font-semibold">
+                            ${getPhaseText(machine.phase)}
+                        </span>
+                    </div>
+
+                    <div class="p-6">
+                        <!-- Animated Drum -->
+                        <div class="mb-6 flex justify-center">
+                            <div class="relative w-48 h-48">
+                                <div class="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-400 rounded-3xl shadow-xl"></div>
+                                <div class="absolute inset-4 bg-gradient-to-br from-gray-700 to-gray-800 rounded-full shadow-inner"></div>
+                                <div class="absolute inset-6 bg-gradient-to-br from-blue-100 to-blue-50 rounded-full overflow-hidden border-4 border-gray-600 shadow-lg">
+                                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-400 to-blue-300 transition-all duration-300" style="height: ${machine.waterLevel}%">
+                                        <div class="absolute inset-0 opacity-30">
+                                            <div class="absolute top-0 left-0 w-full h-1 bg-white animate-pulse"></div>
+                                        </div>
+                                    </div>
+                                    <div id="drum-${machine.id}" class="absolute inset-2 rounded-full flex items-center justify-center">
+                                        ${[...Array(12)].map((_, i) => `
+                                            <div class="absolute w-3 h-3 bg-gray-400 rounded-full opacity-40" 
+                                                style="top: 50%; left: 50%; transform: rotate(${i * 30}deg) translateY(-30px)">
+                                            </div>
+                                        `).join('')}
+                                        <div class="w-8 h-8 bg-gray-500 rounded-full opacity-50"></div>
+                                    </div>
+                                    ${machine.phase === 'washing' && machine.detergent ? `
+                                        ${[...Array(8)].map((_, i) => `
+                                            <div class="absolute bg-white rounded-full opacity-60 animate-bounce"
+                                                style="width: ${Math.random() * 10 + 5}px; height: ${Math.random() * 10 + 5}px; 
+                                                left: ${Math.random() * 80 + 10}%; bottom: ${Math.random() * 60 + 20}%;
+                                                animation-delay: ${Math.random() * 2}s; animation-duration: ${Math.random() * 2 + 1}s">
+                                            </div>
+                                        `).join('')}
+                                    ` : ''}
+                                    ${machine.phase === 'spinning' ? '<div class="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 animate-spin"></div>' : ''}
+                                </div>
+                                <div class="absolute -bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1">
+                                    <div class="w-2 h-2 rounded-full ${machine.status === 'running' ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}"></div>
+                                    <div class="w-2 h-2 rounded-full ${machine.status === 'complete' ? 'bg-blue-400 animate-pulse' : 'bg-gray-400'}"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Water Level -->
+                        <div class="mb-6">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-sm font-semibold text-gray-700">Level Air</span>
+                                <span class="text-sm font-bold text-blue-600">${Math.round(machine.waterLevel)}%</span>
+                            </div>
+                            <div class="h-8 bg-gray-200 rounded-full overflow-hidden relative">
+                                <div class="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-300 flex items-center justify-center"
+                                    style="width: ${machine.waterLevel}%">
+                                    ${machine.waterLevel > 20 ? '<span class="text-white text-xl animate-pulse">💧</span>' : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Info Grid -->
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <p class="text-xs text-gray-500 mb-1">Kecepatan Putar</p>
+                                <p class="text-xl font-bold text-gray-800">${Math.round(machine.rpm)} RPM</p>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <p class="text-xs text-gray-500 mb-1">Timer Fase</p>
+                                <p class="text-xl font-bold text-gray-800">${machine.timer}s</p>
+                            </div>
+                        </div>
+
+                        <!-- Status -->
+                        <div class="flex gap-3 mb-6">
+                            <div class="flex-1 p-3 rounded-lg ${machine.detergent ? 'bg-purple-100' : 'bg-gray-100'}">
+                                <p class="text-xs text-gray-600">Detergen</p>
+                                <p class="font-bold text-sm">${machine.detergent ? 'AKTIF' : 'OFF'}</p>
+                            </div>
+                            <div class="flex-1 p-3 rounded-lg ${machine.status === 'running' ? 'bg-green-100' : machine.status === 'complete' ? 'bg-blue-100' : 'bg-gray-100'}">
+                                <p class="text-xs text-gray-600">Status</p>
+                                <p class="font-bold text-sm uppercase">${machine.status === 'complete' ? 'SELESAI' : machine.status}</p>
+                            </div>
+                        </div>
+
+                        <!-- Timeline -->
+                        <div class="mb-6">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-semibold text-gray-600">Proses Siklus</span>
+                            </div>
+                            <div class="flex gap-1">
+                                <div class="flex-1 h-2 rounded ${['filling', 'washing', 'draining', 'spinning', 'complete'].includes(machine.phase) ? 'bg-blue-500' : 'bg-gray-200'}"></div>
+                                <div class="flex-1 h-2 rounded ${['washing', 'draining', 'spinning', 'complete'].includes(machine.phase) ? 'bg-purple-500' : 'bg-gray-200'}"></div>
+                                <div class="flex-1 h-2 rounded ${['draining', 'spinning', 'complete'].includes(machine.phase) ? 'bg-orange-500' : 'bg-gray-200'}"></div>
+                                <div class="flex-1 h-2 rounded ${['spinning', 'complete'].includes(machine.phase) ? 'bg-green-500' : 'bg-gray-200'}"></div>
+                            </div>
+                        </div>
+
+                        <!-- Control Buttons -->
+                        <div class="flex gap-3">
+                            ${machine.status === 'idle' ? `
+                                <button onclick="startMachine(${machine.id})" ${autoMode ? 'disabled' : ''}
+                                    class="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                                    START
+                                </button>
+                            ` : ''}
+                            ${machine.status === 'running' ? `
+                                <button onclick="stopMachine(${machine.id})" ${autoMode ? 'disabled' : ''}
+                                    class="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                                    STOP
+                                </button>
+                            ` : ''}
+                            ${machine.status === 'complete' ? `
+                                <button onclick="resetMachine(${machine.id})" ${autoMode ? 'disabled' : ''}
+                                    class="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                                    RESET
+                                </button>
+                            ` : ''}
+                        </div>
+
+                        ${autoMode ? `
+                            <div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+                                <span class="text-green-600 text-xl">▶</span>
+                                <span class="text-sm text-green-800 font-semibold">Mode otomatis aktif - Kontrol manual dinonaktifkan</span>
+                            </div>
+                        ` : ''}
+
+                        ${machine.status === 'complete' ? `
+                            <div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+                                <span class="text-green-600 text-xl">✓</span>
+                                <span class="text-sm text-green-800 font-semibold">Siklus pencucian selesai!</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderReport() {
+            const reportSummary = document.getElementById('reportSummary');
+            const totalWater = reportData.reduce((acc, r) => acc + r.waterUsed, 0);
+            const avgDuration = reportData.length > 0 ? Math.round(reportData.reduce((acc, r) => acc + r.duration, 0) / reportData.length) : 0;
+
+            reportSummary.innerHTML = `
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <p class="text-sm text-gray-600 mb-1">Total Siklus</p>
+                    <p class="text-2xl font-bold text-blue-600">${reportData.length}</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <p class="text-sm text-gray-600 mb-1">Total Air</p>
+                    <p class="text-2xl font-bold text-cyan-600">${totalWater} L</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <p class="text-sm text-gray-600 mb-1">Rata-rata Durasi</p>
+                    <p class="text-2xl font-bold text-green-600">${avgDuration}s</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <p class="text-sm text-gray-600 mb-1">Success Rate</p>
+                    <p class="text-2xl font-bold text-purple-600">100%</p>
+                </div>
+            `;
+
+            const reportTableContainer = document.getElementById('reportTableContainer');
+            if (reportData.length === 0) {
+                reportTableContainer.innerHTML = `
+                    <div class="text-center py-12">
+                        <p class="text-6xl mb-4">📄</p>
+                        <p class="text-gray-500 text-lg">Belum ada data siklus pencucian</p>
+                        <p class="text-gray-400 text-sm mt-2">Mulai mesin untuk mencatat data</p>
+                    </div>
+                `;
+            } else {
+                reportTableContainer.innerHTML = `
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="sticky top-0 bg-white">
+                                <tr class="bg-gray-100 border-b-2 border-gray-300">
+                                    <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">No</th>
+                                    <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">Mesin</th>
+                                    <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">Waktu Selesai</th>
+                                    <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">Air Digunakan</th>
+                                    <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">Durasi</th>
+                                    <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${reportData.slice().reverse().map((record, index) => `
+                                    <tr class="border-b hover:bg-gray-50 transition-colors">
+                                        <td class="px-4 py-3 text-sm text-gray-700">${reportData.length - index}</td>
+                                        <td class="px-4 py-3 text-sm font-semibold text-gray-800">Mesin #${record.machineId}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700">${record.timestamp}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700">${record.waterUsed} Liter</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700">${record.duration} detik</td>
+                                        <td class="px-4 py-3">
+                                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                                ${record.status}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+        }
+
+        function render() {
+            renderStats();
+            renderMachines();
+            renderReport();
+            
+            const autoModeBtn = document.getElementById('autoModeBtn');
+            const autoModeIcon = document.getElementById('autoModeIcon');
+            const autoModeText = document.getElementById('autoModeText');
+            
+            if (autoMode) {
+                autoModeBtn.className = 'bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center gap-2 transition-colors';
+                autoModeIcon.textContent = '⏸';
+                autoModeText.textContent = 'Stop Auto';
+            } else {
+                autoModeBtn.className = 'bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center gap-2 transition-colors';
+                autoModeIcon.textContent = '▶';
+                autoModeText.textContent = 'Auto Mode';
+            }
+        }
+
+        // Machine Update Loop
+        setInterval(() => {
+            let updated = false;
+            machines = machines.map(machine => {
+                if (machine.status === 'running') {
+                    updated = true;
+                    let newMachine = { ...machine };
+                    
+                    if (machine.phase === 'filling' && machine.waterLevel < 100) {
+                        newMachine.waterLevel = Math.min(100, machine.waterLevel + 2);
+                        newMachine.timer = machine.timer + 1;
+                        if (newMachine.waterLevel >= 100) {
+                            newMachine.phase = 'washing';
+                            newMachine.timer = 0;
+                            newMachine.detergent = true;
+                        }
+                    }
+                    else if (machine.phase === 'washing') {
+                        newMachine.rpm = 400 + Math.sin(machine.timer / 5) * 50;
+                        newMachine.timer = machine.timer + 1;
+                        if (machine.timer >= 60) {
+                            newMachine.phase = 'draining';
+                            newMachine.timer = 0;
+                            newMachine.rpm = 0;
+                        }
+                    }
+                    else if (machine.phase === 'draining') {
+                        newMachine.waterLevel = Math.max(0, machine.waterLevel - 3);
+                        newMachine.timer = machine.timer + 1;
+                        newMachine.detergent = false;
+                        if (newMachine.waterLevel <= 0) {
+                            newMachine.phase = 'spinning';
+                            newMachine.timer = 0;
+                        }
+                    }
+                    else if (machine.phase === 'spinning') {
+                        newMachine.rpm = Math.min(1200, machine.rpm + 20);
+                        newMachine.timer = machine.timer + 1;
+                        if (machine.timer >= 45) {
+                            newMachine.status = 'complete';
+                            newMachine.phase = 'complete';
+                            newMachine.rpm = 0;
+                            newMachine.timer = 0;
+                            
+                            // Update statistics
+                            systemStats.totalCycles++;
+                            systemStats.waterUsage += 75;
+                            
+                            // Add to report
+                            const timestamp = new Date().toLocaleString('id-ID');
+                            reportData.push({
+                                id: reportData.length + 1,
+                                machineId: machine.id,
+                                timestamp: timestamp,
+                                waterUsed: 75,
+                                duration: 105,
+                                status: 'Success'
+                            });
+                        }
+                    }
+                    
+                    return newMachine;
+                }
+                return machine;
+            });
+            
+            if (updated) {
+                render();
+            }
+        }, 100);
+
+        // Event Listeners
+        document.getElementById('autoModeBtn').addEventListener('click', toggleAutoMode);
+        document.getElementById('clearReportBtn').addEventListener('click', clearReport);
+        document.getElementById('exportReportBtn').addEventListener('click', exportReport);
+
+        // Initial render
+        render();
+    </script>
+</body>
+</html>
