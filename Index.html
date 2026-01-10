@@ -3,434 +3,841 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SCADA Monitoring - Mesin Cuci 4 Tabung</title>
+    <title>SCADA Monitoring Mesin Cuci 4 Tabung - Advanced</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @keyframes spin {
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(34, 197, 94, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(236, 72, 153, 0.8); }
+        }
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        @keyframes bubble-rise {
+            0% { transform: translateY(0) scale(0); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-100px) scale(1); opacity: 0; }
+        }
+        @keyframes spin-fast {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        @keyframes water-wave {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(10px); }
         }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+        .animate-gradient { 
+            background-size: 200% 200%;
+            animation: gradient-shift 3s ease infinite;
         }
-        .animate-spin { animation: spin 1s linear infinite; }
-        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        .animate-bounce { animation: bounce 1s ease-in-out infinite; }
+        .animate-bubble { animation: bubble-rise 3s ease-in-out infinite; }
+        .animate-spin-fast { animation: spin-fast 1s linear infinite; }
+        .animate-water-wave { animation: water-wave 2s ease-in-out infinite; }
+        
+        .gradient-green-pink {
+            background: linear-gradient(135deg, #10b981 0%, #ec4899 50%, #22c55e 100%);
+        }
+        
+        .gradient-animated {
+            background: linear-gradient(270deg, #10b981, #ec4899, #22c55e, #f472b6);
+            background-size: 800% 800%;
+            animation: gradient-shift 8s ease infinite;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .neon-text {
+            text-shadow: 0 0 10px rgba(34, 197, 94, 0.8),
+                         0 0 20px rgba(236, 72, 153, 0.6),
+                         0 0 30px rgba(34, 197, 94, 0.4);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 200px;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            min-width: 300px;
+        }
+        
+        @keyframes slide-in {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .slide-in { animation: slide-in 0.3s ease-out; }
+        
+        .water-particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            animation: bubble-rise 4s ease-in-out infinite;
+        }
     </style>
 </head>
-<body class="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 min-h-screen">
-    <div class="p-6" id="app">
-        <div class="mb-6 flex justify-between items-center flex-wrap gap-4">
-            <div>
-                <h1 class="text-4xl font-bold text-white mb-2">SCADA Monitoring System</h1>
-                <p class="text-blue-200">Mesin Cuci Industri - 4 Unit Tabung</p>
-            </div>
-            <button id="autoModeBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center gap-2 transition-colors">
-                <span id="autoModeIcon">▶</span>
-                <span id="autoModeText">Auto Mode</span>
-            </button>
+<body class="bg-gradient-to-br from-gray-900 via-green-900 to-pink-900 min-h-screen">
+    
+    <!-- Notification Container -->
+    <div id="notificationContainer"></div>
+
+    <div class="container mx-auto p-6">
+        <!-- Header dengan Animasi -->
+        <div class="mb-8 text-center animate-float">
+            <h1 class="text-6xl font-bold text-white neon-text mb-3">
+                🔧 SCADA MONITORING SYSTEM 🔧
+            </h1>
+            <p class="text-2xl text-green-300 mb-2">Mesin Cuci Industri Premium - 4 Unit Tabung</p>
+            <p class="text-pink-300 text-sm">Advanced Real-time Monitoring & Control System</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="statsContainer"></div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="machinesContainer"></div>
-
-        <div class="mt-6 bg-white rounded-lg p-4 shadow-lg">
-            <h3 class="font-bold text-gray-800 mb-3">Fase Proses:</h3>
-            <div class="flex flex-wrap gap-4">
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-blue-500 rounded"></div>
-                    <span class="text-sm text-gray-700">Pengisian Air</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-purple-500 rounded"></div>
-                    <span class="text-sm text-gray-700">Pencucian</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-orange-500 rounded"></div>
-                    <span class="text-sm text-gray-700">Pembuangan Air</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 bg-green-500 rounded"></div>
-                    <span class="text-sm text-gray-700">Pengeringan</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="mt-6 bg-white rounded-xl shadow-2xl overflow-hidden">
-            <div class="bg-gradient-to-r from-blue-600 to-blue-700 p-6 flex justify-between items-center flex-wrap gap-4">
+        <!-- Control Panel Utama -->
+        <div class="mb-6 glass-effect rounded-2xl p-6 animate-pulse-glow">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                    <h2 class="text-2xl font-bold text-white mb-1">Laporan Operasional Mesin Cuci</h2>
-                    <p class="text-blue-100">Data Siklus Pencucian Real-time</p>
+                    <label class="text-white font-bold mb-2 block">Mode Operasi</label>
+                    <select id="operationMode" class="w-full p-3 rounded-lg bg-gray-800 text-white border-2 border-green-500">
+                        <option value="manual">Manual Control</option>
+                        <option value="auto">Auto Mode</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="eco">Eco Mode</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="text-white font-bold mb-2 block">Program Cuci</label>
+                    <select id="washProgram" class="w-full p-3 rounded-lg bg-gray-800 text-white border-2 border-pink-500">
+                        <option value="normal">Normal (105s)</option>
+                        <option value="quick">Quick (60s)</option>
+                        <option value="heavy">Heavy Duty (150s)</option>
+                        <option value="delicate">Delicate (90s)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="text-white font-bold mb-2 block">Suhu Air</label>
+                    <select id="waterTemp" class="w-full p-3 rounded-lg bg-gray-800 text-white border-2 border-green-500">
+                        <option value="cold">Dingin (20°C)</option>
+                        <option value="warm">Hangat (40°C)</option>
+                        <option value="hot">Panas (60°C)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="text-white font-bold mb-2 block">Kecepatan Spin</label>
+                    <input type="range" id="spinSpeed" min="400" max="1400" value="1200" class="w-full mt-3">
+                    <p class="text-white text-center mt-1"><span id="spinSpeedValue">1200</span> RPM</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <button onclick="startAllMachines()" class="gradient-green-pink text-white font-bold py-4 px-6 rounded-xl hover:scale-105 transform transition">
+                    ▶️ START ALL MACHINES
+                </button>
+                <button onclick="stopAllMachines()" class="bg-gradient-to-r from-red-500 to-pink-500 text-white font-bold py-4 px-6 rounded-xl hover:scale-105 transform transition">
+                    ⏸️ STOP ALL MACHINES
+                </button>
+                <button onclick="emergencyStop()" class="bg-gradient-to-r from-red-700 to-red-900 text-white font-bold py-4 px-6 rounded-xl hover:scale-105 transform transition animate-pulse">
+                    🚨 EMERGENCY STOP
+                </button>
+            </div>
+        </div>
+
+        <!-- System Statistics dengan Animasi -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+            <div class="gradient-animated rounded-xl p-6 text-center transform hover:scale-105 transition">
+                <div class="text-5xl mb-2">⚡</div>
+                <p class="text-white text-sm mb-1">Mesin Aktif</p>
+                <p class="text-4xl font-bold text-white" id="activeMachines">0/4</p>
+            </div>
+            
+            <div class="gradient-animated rounded-xl p-6 text-center transform hover:scale-105 transition" style="animation-delay: 0.2s">
+                <div class="text-5xl mb-2">🔄</div>
+                <p class="text-white text-sm mb-1">Total Siklus</p>
+                <p class="text-4xl font-bold text-white" id="totalCycles">0</p>
+            </div>
+            
+            <div class="gradient-animated rounded-xl p-6 text-center transform hover:scale-105 transition" style="animation-delay: 0.4s">
+                <div class="text-5xl mb-2">💧</div>
+                <p class="text-white text-sm mb-1">Pemakaian Air</p>
+                <p class="text-4xl font-bold text-white" id="waterUsage">0L</p>
+            </div>
+            
+            <div class="gradient-animated rounded-xl p-6 text-center transform hover:scale-105 transition" style="animation-delay: 0.6s">
+                <div class="text-5xl mb-2">⚙️</div>
+                <p class="text-white text-sm mb-1">Efisiensi</p>
+                <p class="text-4xl font-bold text-white" id="efficiency">100%</p>
+            </div>
+            
+            <div class="gradient-animated rounded-xl p-6 text-center transform hover:scale-105 transition" style="animation-delay: 0.8s">
+                <div class="text-5xl mb-2">🌡️</div>
+                <p class="text-white text-sm mb-1">Suhu Avg</p>
+                <p class="text-4xl font-bold text-white" id="avgTemp">20°C</p>
+            </div>
+        </div>
+
+        <!-- Live Performance Chart -->
+        <div class="glass-effect rounded-2xl p-6 mb-6">
+            <h3 class="text-2xl font-bold text-white mb-4 neon-text">📊 Live Performance Monitor</h3>
+            <div class="chart-container">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Machines Grid -->
+        <div id="machinesGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6"></div>
+
+        <!-- Advanced Reports -->
+        <div class="glass-effect rounded-2xl p-6">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-3xl font-bold text-white neon-text">📈 Advanced Reporting System</h2>
+                    <p class="text-green-300 mt-2">Real-time Data Analytics & Export</p>
                 </div>
                 <div class="flex gap-3">
-                    <button id="clearReportBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">
-                        Hapus Data
+                    <button onclick="exportPDF()" class="bg-gradient-to-r from-red-500 to-pink-500 text-white font-bold py-3 px-6 rounded-xl hover:scale-105 transform transition">
+                        📄 Export PDF
                     </button>
-                    <button id="exportReportBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors text-sm">
-                        ⬇ Export CSV
+                    <button onclick="exportExcel()" class="bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-3 px-6 rounded-xl hover:scale-105 transform transition">
+                        📊 Export Excel
+                    </button>
+                    <button onclick="exportWord()" class="bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold py-3 px-6 rounded-xl hover:scale-105 transform transition">
+                        📝 Export Word
+                    </button>
+                    <button onclick="clearReport()" class="bg-gradient-to-r from-gray-600 to-gray-800 text-white font-bold py-3 px-6 rounded-xl hover:scale-105 transform transition">
+                        🗑️ Clear
                     </button>
                 </div>
             </div>
-            <div class="p-6 bg-gray-50 border-b">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="reportSummary"></div>
+            
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-gradient-to-br from-green-600 to-emerald-700 rounded-xl p-4 text-white">
+                    <p class="text-sm opacity-80">Total Siklus</p>
+                    <p class="text-3xl font-bold" id="reportTotalCycles">0</p>
+                </div>
+                <div class="bg-gradient-to-br from-blue-600 to-cyan-700 rounded-xl p-4 text-white">
+                    <p class="text-sm opacity-80">Total Air</p>
+                    <p class="text-3xl font-bold" id="reportTotalWater">0L</p>
+                </div>
+                <div class="bg-gradient-to-br from-purple-600 to-pink-700 rounded-xl p-4 text-white">
+                    <p class="text-sm opacity-80">Avg Durasi</p>
+                    <p class="text-3xl font-bold" id="reportAvgDuration">0s</p>
+                </div>
+                <div class="bg-gradient-to-br from-orange-600 to-red-700 rounded-xl p-4 text-white">
+                    <p class="text-sm opacity-80">Success Rate</p>
+                    <p class="text-3xl font-bold">100%</p>
+                </div>
             </div>
-            <div class="p-6 max-h-96 overflow-auto" id="reportTableContainer"></div>
+            
+            <!-- Report Table -->
+            <div class="overflow-x-auto max-h-96">
+                <table class="w-full text-white" id="reportTable">
+                    <thead class="sticky top-0 bg-gradient-to-r from-green-600 to-pink-600">
+                        <tr>
+                            <th class="px-4 py-3 text-left">No</th>
+                            <th class="px-4 py-3 text-left">Mesin</th>
+                            <th class="px-4 py-3 text-left">Waktu</th>
+                            <th class="px-4 py-3 text-left">Program</th>
+                            <th class="px-4 py-3 text-left">Air (L)</th>
+                            <th class="px-4 py-3 text-left">Durasi</th>
+                            <th class="px-4 py-3 text-left">Suhu</th>
+                            <th class="px-4 py-3 text-left">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportTableBody">
+                        <tr>
+                            <td colspan="8" class="text-center py-12 text-gray-400">
+                                <div class="text-6xl mb-4">📋</div>
+                                Belum ada data siklus pencucian
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <script>
+        // Global State
         let machines = [
-            { id: 1, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false },
-            { id: 2, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false },
-            { id: 3, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false },
-            { id: 4, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false }
+            { id: 1, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false, temp: 20 },
+            { id: 2, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false, temp: 20 },
+            { id: 3, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false, temp: 20 },
+            { id: 4, status: 'idle', waterLevel: 0, phase: 'idle', timer: 0, rpm: 0, detergent: false, temp: 20 }
         ];
-
-        let systemStats = { totalCycles: 0, waterUsage: 0, activeMachines: 0 };
+        
         let reportData = [];
-        let autoMode = false;
-        let autoInterval = null;
+        let totalCycles = 0;
+        let waterUsage = 0;
+        let performanceData = [];
+        let chartInstance = null;
 
-        function getPhaseColor(phase) {
-            const colors = {
-                'filling': 'bg-blue-500',
-                'washing': 'bg-purple-500',
-                'draining': 'bg-orange-500',
-                'spinning': 'bg-green-500',
-                'complete': 'bg-gray-500'
-            };
-            return colors[phase] || 'bg-gray-300';
-        }
+        // Settings
+        document.getElementById('spinSpeed').addEventListener('input', function(e) {
+            document.getElementById('spinSpeedValue').textContent = e.target.value;
+        });
 
-        function getPhaseText(phase) {
-            const texts = {
-                'filling': 'Pengisian Air',
-                'washing': 'Pencucian',
-                'draining': 'Pembuangan',
-                'spinning': 'Pengeringan',
-                'complete': 'Selesai'
-            };
-            return texts[phase] || 'Standby';
-        }
-
-        function startMachine(id) {
-            if (autoMode) return;
-            machines = machines.map(m => 
-                m.id === id ? { ...m, status: 'running', phase: 'filling', waterLevel: 0, timer: 0, rpm: 0, detergent: false } : m
-            );
-            render();
-        }
-
-        function stopMachine(id) {
-            if (autoMode) return;
-            machines = machines.map(m => 
-                m.id === id ? { ...m, status: 'idle', phase: 'idle', waterLevel: 0, timer: 0, rpm: 0, detergent: false } : m
-            );
-            render();
-        }
-
-        function resetMachine(id) {
-            if (autoMode) return;
-            machines = machines.map(m => 
-                m.id === id ? { ...m, status: 'idle', phase: 'idle', waterLevel: 0, timer: 0, rpm: 0, detergent: false } : m
-            );
-            render();
-        }
-
-        function toggleAutoMode() {
-            autoMode = !autoMode;
-            if (autoMode) {
-                startAutoMode();
-            } else {
-                stopAutoMode();
-            }
-            render();
-        }
-
-        function startAutoMode() {
-            if (autoInterval) clearInterval(autoInterval);
-            autoInterval = setInterval(() => {
-                const availableMachines = machines.filter(m => m.status === 'idle' || m.status === 'complete');
-                if (availableMachines.length > 0) {
-                    const selectedMachine = availableMachines[0];
-                    machines = machines.map(m => 
-                        m.id === selectedMachine.id 
-                            ? { ...m, status: 'running', phase: 'filling', waterLevel: 0, timer: 0, rpm: 0, detergent: false }
-                            : m
-                    );
-                    render();
-                }
+        // Show Notification
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            notification.className = `notification slide-in p-4 rounded-xl shadow-2xl mb-3 ${
+                type === 'success' ? 'bg-gradient-to-r from-green-500 to-emerald-600' :
+                type === 'error' ? 'bg-gradient-to-r from-red-500 to-pink-600' :
+                type === 'warning' ? 'bg-gradient-to-r from-yellow-500 to-orange-600' :
+                'bg-gradient-to-r from-blue-500 to-purple-600'
+            }`;
+            notification.innerHTML = `
+                <div class="flex items-center gap-3 text-white">
+                    <span class="text-2xl">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+                    <span class="font-bold">${message}</span>
+                </div>
+            `;
+            container.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
             }, 3000);
         }
 
-        function stopAutoMode() {
-            if (autoInterval) {
-                clearInterval(autoInterval);
-                autoInterval = null;
-            }
-        }
-
-        function exportReport() {
-            if (reportData.length === 0) return;
-            const csv = [
-                ['No', 'Mesin', 'Waktu', 'Air (L)', 'Durasi (s)', 'Status'],
-                ...reportData.map((r, i) => [i + 1, `Mesin #${r.machineId}`, r.timestamp, r.waterUsed, r.duration, r.status])
-            ].map(row => row.join(',')).join('\n');
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `laporan-mesin-cuci-${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
-        }
-
-        function clearReport() {
-            if (reportData.length === 0) return;
-            if (confirm('Hapus semua data laporan?')) {
-                reportData = [];
-                render();
-            }
-        }
-
-        function renderStats() {
-            const activeMachines = machines.filter(m => m.status === 'running').length;
-            systemStats.activeMachines = activeMachines;
-            document.getElementById('statsContainer').innerHTML = `
-                <div class="bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg p-5 shadow-lg">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-blue-100 text-sm">Mesin Aktif</p>
-                            <p class="text-3xl font-bold text-white">${activeMachines}/4</p>
-                        </div>
-                        <span class="text-white text-4xl">⚡</span>
-                    </div>
-                </div>
-                <div class="bg-gradient-to-br from-cyan-600 to-cyan-700 rounded-lg p-5 shadow-lg">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-cyan-100 text-sm">Total Siklus</p>
-                            <p class="text-3xl font-bold text-white">${systemStats.totalCycles}</p>
-                        </div>
-                        <span class="text-white text-4xl">💧</span>
-                    </div>
-                </div>
-                <div class="bg-gradient-to-br from-teal-600 to-teal-700 rounded-lg p-5 shadow-lg">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-teal-100 text-sm">Pemakaian Air</p>
-                            <p class="text-3xl font-bold text-white">${systemStats.waterUsage}L</p>
-                        </div>
-                        <span class="text-white text-4xl">🌊</span>
-                    </div>
-                </div>
-                <div class="bg-gradient-to-br ${autoMode ? 'from-green-600 to-green-700' : 'from-gray-600 to-gray-700'} rounded-lg p-5 shadow-lg">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="${autoMode ? 'text-green-100' : 'text-gray-100'} text-sm">Mode Otomatis</p>
-                            <p class="text-3xl font-bold text-white">${autoMode ? 'AKTIF' : 'OFF'}</p>
-                        </div>
-                        <span class="text-white text-4xl ${autoMode ? 'animate-pulse' : ''}">${autoMode ? '▶' : '⏸'}</span>
-                    </div>
-                </div>
-            `;
-        }
-
+        // Render Machines
         function renderMachines() {
-            document.getElementById('machinesContainer').innerHTML = machines.map(m => `
-                <div class="bg-white rounded-xl shadow-2xl overflow-hidden">
-                    <div class="${getPhaseColor(m.phase)} p-4 flex justify-between items-center">
-                        <h2 class="text-xl font-bold text-white">Mesin Cuci #${m.id}</h2>
-                        <span class="bg-white bg-opacity-30 px-3 py-1 rounded-full text-white text-sm font-semibold">${getPhaseText(m.phase)}</span>
+            const grid = document.getElementById('machinesGrid');
+            grid.innerHTML = machines.map(machine => `
+                <div class="glass-effect rounded-2xl overflow-hidden transform hover:scale-105 transition">
+                    <!-- Header -->
+                    <div class="gradient-animated p-4 flex justify-between items-center">
+                        <h3 class="text-2xl font-bold text-white">🧺 Mesin #${machine.id}</h3>
+                        <span class="bg-white bg-opacity-20 px-4 py-2 rounded-full text-white font-bold">
+                            ${getPhaseText(machine.phase)}
+                        </span>
                     </div>
+                    
+                    <!-- Machine Visualization -->
                     <div class="p-6">
-                        <div class="mb-6 flex justify-center">
-                            <div class="relative w-48 h-48">
-                                <div class="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-400 rounded-3xl shadow-xl"></div>
-                                <div class="absolute inset-4 bg-gradient-to-br from-gray-700 to-gray-800 rounded-full shadow-inner"></div>
-                                <div class="absolute inset-6 bg-gradient-to-br from-blue-100 to-blue-50 rounded-full overflow-hidden border-4 border-gray-600 shadow-lg">
-                                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-400 to-blue-300 transition-all duration-300" style="height: ${m.waterLevel}%">
-                                        <div class="absolute inset-0 opacity-30"><div class="absolute top-0 left-0 w-full h-1 bg-white animate-pulse"></div></div>
+                        <!-- Animated Drum -->
+                        <div class="relative w-56 h-56 mx-auto mb-6">
+                            <!-- Outer Body -->
+                            <div class="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-500 rounded-3xl shadow-2xl"></div>
+                            
+                            <!-- Door Frame -->
+                            <div class="absolute inset-4 bg-gradient-to-br from-gray-700 to-gray-900 rounded-full shadow-inner"></div>
+                            
+                            <!-- Glass Door -->
+                            <div class="absolute inset-6 bg-gradient-to-br from-blue-100 to-blue-50 rounded-full overflow-hidden border-4 border-gray-600 shadow-xl">
+                                <!-- Water Level -->
+                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-400 via-cyan-300 to-blue-200 transition-all duration-300 animate-water-wave"
+                                     style="height: ${machine.waterLevel}%">
+                                    <div class="water-particles">
+                                        ${machine.phase === 'washing' && machine.detergent ? 
+                                            Array(15).fill(0).map((_, i) => `
+                                                <div class="particle" style="
+                                                    width: ${Math.random() * 8 + 4}px;
+                                                    height: ${Math.random() * 8 + 4}px;
+                                                    left: ${Math.random() * 90}%;
+                                                    bottom: ${Math.random() * 60}%;
+                                                    animation-delay: ${Math.random() * 3}s;
+                                                "></div>
+                                            `).join('') : ''
+                                        }
                                     </div>
-                                    <div class="absolute inset-2 rounded-full flex items-center justify-center">
-                                        ${[...Array(12)].map((_, i) => `<div class="absolute w-3 h-3 bg-gray-400 rounded-full opacity-40" style="top: 50%; left: 50%; transform: rotate(${i * 30}deg) translateY(-30px)"></div>`).join('')}
-                                        <div class="w-8 h-8 bg-gray-500 rounded-full opacity-50"></div>
-                                    </div>
-                                    ${m.phase === 'washing' && m.detergent ? [...Array(8)].map(() => `<div class="absolute bg-white rounded-full opacity-60 animate-bounce" style="width: ${Math.random() * 10 + 5}px; height: ${Math.random() * 10 + 5}px; left: ${Math.random() * 80 + 10}%; bottom: ${Math.random() * 60 + 20}%; animation-delay: ${Math.random() * 2}s; animation-duration: ${Math.random() * 2 + 1}s"></div>`).join('') : ''}
-                                    ${m.phase === 'spinning' ? '<div class="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 animate-spin"></div>' : ''}
                                 </div>
-                                <div class="absolute -bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1">
-                                    <div class="w-2 h-2 rounded-full ${m.status === 'running' ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}"></div>
-                                    <div class="w-2 h-2 rounded-full ${m.status === 'complete' ? 'bg-blue-400 animate-pulse' : 'bg-gray-400'}"></div>
+                                
+                                <!-- Rotating Drum -->
+                                <div class="absolute inset-3 flex items-center justify-center ${machine.status === 'running' ? 'animate-spin-fast' : ''}">
+                                    ${Array(8).fill(0).map((_, i) => `
+                                        <div class="absolute w-4 h-4 bg-gray-400 rounded-full opacity-40"
+                                             style="transform: rotate(${i * 45}deg) translateY(-35px)"></div>
+                                    `).join('')}
+                                    <div class="w-10 h-10 bg-gray-500 rounded-full opacity-50"></div>
                                 </div>
+                                
+                                ${machine.phase === 'spinning' ? 
+                                    '<div class="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-spin-fast"></div>' 
+                                : ''}
+                            </div>
+                            
+                            <!-- Status Lights -->
+                            <div class="absolute -bottom-3 left-1/2 transform -translate-x-1/2 flex gap-2">
+                                <div class="w-3 h-3 rounded-full ${machine.status === 'running' ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}"></div>
+                                <div class="w-3 h-3 rounded-full ${machine.status === 'complete' ? 'bg-pink-400 animate-pulse' : 'bg-gray-400'}"></div>
                             </div>
                         </div>
-                        <div class="mb-6">
+
+                        <!-- Water Level Bar -->
+                        <div class="mb-4">
                             <div class="flex justify-between mb-2">
-                                <span class="text-sm font-semibold text-gray-700">Level Air</span>
-                                <span class="text-sm font-bold text-blue-600">${Math.round(m.waterLevel)}%</span>
+                                <span class="text-sm font-bold text-white">💧 Level Air</span>
+                                <span class="text-sm font-bold text-green-300">${Math.round(machine.waterLevel)}%</span>
                             </div>
-                            <div class="h-8 bg-gray-200 rounded-full overflow-hidden relative">
-                                <div class="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-300 flex items-center justify-center" style="width: ${m.waterLevel}%">
-                                    ${m.waterLevel > 20 ? '<span class="text-white text-xl animate-pulse">💧</span>' : ''}
+                            <div class="h-10 bg-gray-800 rounded-full overflow-hidden relative">
+                                <div class="h-full gradient-green-pink transition-all duration-300 flex items-center justify-center"
+                                     style="width: ${machine.waterLevel}%">
+                                    ${machine.waterLevel > 15 ? '<span class="text-white font-bold text-sm">💧</span>' : ''}
                                 </div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4 mb-6">
-                            <div class="bg-gray-50 p-3 rounded-lg">
-                                <p class="text-xs text-gray-500 mb-1">Kecepatan Putar</p>
-                                <p class="text-xl font-bold text-gray-800">${Math.round(m.rpm)} RPM</p>
+
+                        <!-- Info Grid -->
+                        <div class="grid grid-cols-3 gap-3 mb-4">
+                            <div class="bg-gray-800 bg-opacity-50 p-3 rounded-xl text-center">
+                                <p class="text-xs text-gray-400 mb-1">RPM</p>
+                                <p class="text-xl font-bold text-white">${Math.round(machine.rpm)}</p>
                             </div>
-                            <div class="bg-gray-50 p-3 rounded-lg">
-                                <p class="text-xs text-gray-500 mb-1">Timer Fase</p>
-                                <p class="text-xl font-bold text-gray-800">${m.timer}s</p>
+                            <div class="bg-gray-800 bg-opacity-50 p-3 rounded-xl text-center">
+                                <p class="text-xs text-gray-400 mb-1">Timer</p>
+                                <p class="text-xl font-bold text-white">${machine.timer}s</p>
                             </div>
-                        </div>
-                        <div class="flex gap-3 mb-6">
-                            <div class="flex-1 p-3 rounded-lg ${m.detergent ? 'bg-purple-100' : 'bg-gray-100'}">
-                                <p class="text-xs text-gray-600">Detergen</p>
-                                <p class="font-bold text-sm">${m.detergent ? 'AKTIF' : 'OFF'}</p>
-                            </div>
-                            <div class="flex-1 p-3 rounded-lg ${m.status === 'running' ? 'bg-green-100' : m.status === 'complete' ? 'bg-blue-100' : 'bg-gray-100'}">
-                                <p class="text-xs text-gray-600">Status</p>
-                                <p class="font-bold text-sm uppercase">${m.status === 'complete' ? 'SELESAI' : m.status}</p>
+                            <div class="bg-gray-800 bg-opacity-50 p-3 rounded-xl text-center">
+                                <p class="text-xs text-gray-400 mb-1">Suhu</p>
+                                <p class="text-xl font-bold text-white">${machine.temp}°C</p>
                             </div>
                         </div>
-                        <div class="mb-6">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-xs font-semibold text-gray-600">Proses Siklus</span>
+
+                        <!-- Status Indicators -->
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div class="bg-gray-800 bg-opacity-50 p-3 rounded-xl">
+                                <p class="text-xs text-gray-400">Detergen</p>
+                                <p class="font-bold ${machine.detergent ? 'text-purple-400' : 'text-gray-500'}">${machine.detergent ? '✅ AKTIF' : '⬜ OFF'}</p>
                             </div>
+                            <div class="bg-gray-800 bg-opacity-50 p-3 rounded-xl">
+                                <p class="text-xs text-gray-400">Status</p>
+                                <p class="font-bold ${machine.status === 'running' ? 'text-green-400' : machine.status === 'complete' ? 'text-pink-400' : 'text-gray-500'}">${machine.status.toUpperCase()}</p>
+                            </div>
+                        </div>
+
+                        <!-- Progress Timeline -->
+                        <div class="mb-4">
+                            <p class="text-xs text-gray-400 mb-2">Proses Siklus</p>
                             <div class="flex gap-1">
-                                <div class="flex-1 h-2 rounded ${['filling', 'washing', 'draining', 'spinning', 'complete'].includes(m.phase) ? 'bg-blue-500' : 'bg-gray-200'}"></div>
-                                <div class="flex-1 h-2 rounded ${['washing', 'draining', 'spinning', 'complete'].includes(m.phase) ? 'bg-purple-500' : 'bg-gray-200'}"></div>
-                                <div class="flex-1 h-2 rounded ${['draining', 'spinning', 'complete'].includes(m.phase) ? 'bg-orange-500' : 'bg-gray-200'}"></div>
-                                <div class="flex-1 h-2 rounded ${['spinning', 'complete'].includes(m.phase) ? 'bg-green-500' : 'bg-gray-200'}"></div>
+                                <div class="flex-1 h-3 rounded ${['filling', 'washing', 'draining', 'spinning', 'complete'].includes(machine.phase) ? 'bg-green-500' : 'bg-gray-700'}"></div>
+                                <div class="flex-1 h-3 rounded ${['washing', 'draining', 'spinning', 'complete'].includes(machine.phase) ? 'bg-purple-500' : 'bg-gray-700'}"></div>
+                                <div class="flex-1 h-3 rounded ${['draining', 'spinning', 'complete'].includes(machine.phase) ? 'bg-orange-500' : 'bg-gray-700'}"></div>
+                                <div class="flex-1 h-3 rounded ${['spinning', 'complete'].includes(machine.phase) ? 'bg-pink-500' : 'bg-gray-700'}"></div>
                             </div>
                         </div>
+
+                        <!-- Control Buttons -->
                         <div class="flex gap-3">
-                            ${m.status === 'idle' ? `<button onclick="startMachine(${m.id})" ${autoMode ? 'disabled' : ''} class="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-colors">START</button>` : ''}
-                            ${m.status === 'running' ? `<button onclick="stopMachine(${m.id})" ${autoMode ? 'disabled' : ''} class="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-colors">STOP</button>` : ''}
-                            ${m.status === 'complete' ? `<button onclick="resetMachine(${m.id})" ${autoMode ? 'disabled' : ''} class="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-colors">RESET</button>` : ''}
+                            ${machine.status === 'idle' ? `
+                                <button onclick="startMachine(${machine.id})" class="flex-1 gradient-green-pink text-white font-bold py-4 rounded-xl hover:scale-105 transform transition">
+                                    ▶️ START
+                                </button>
+                            ` : ''}
+                            ${machine.status === 'running' ? `
+                                <button onclick="pauseMachine(${machine.id})" class="flex-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold py-4 rounded-xl hover:scale-105 transform transition">
+                                    ⏸️ PAUSE
+                                </button>
+                                <button onclick="stopMachine(${machine.id})" class="flex-1 bg-gradient-to-r from-red-500 to-pink-500 text-white font-bold py-4 rounded-xl hover:scale-105 transform transition">
+                                    ⏹️ STOP
+                                </button>
+                            ` : ''}
+                            ${machine.status === 'complete' ? `
+                                <button onclick="resetMachine(${machine.id})" class="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold py-4 rounded-xl hover:scale-105 transform transition">
+                                    🔄 RESET
+                                </button>
+                            ` : ''}
                         </div>
-                        ${autoMode ? '<div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2"><span class="text-green-600 text-xl">▶</span><span class="text-sm text-green-800 font-semibold">Mode otomatis aktif - Kontrol manual dinonaktifkan</span></div>' : ''}
-                        ${m.status === 'complete' ? '<div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2"><span class="text-green-600 text-xl">✓</span><span class="text-sm text-green-800 font-semibold">Siklus pencucian selesai!</span></div>' : ''}
                     </div>
                 </div>
             `).join('');
         }
 
-        function renderReport() {
-            const totalWater = reportData.reduce((acc, r) => acc + r.waterUsed, 0);
-            const avgDuration = reportData.length > 0 ? Math.round(reportData.reduce((acc, r) => acc + r.duration, 0) / reportData.length) : 0;
-            document.getElementById('reportSummary').innerHTML = `
-                <div class="bg-white p-4 rounded-lg shadow"><p class="text-sm text-gray-600 mb-1">Total Siklus</p><p class="text-2xl font-bold text-blue-600">${reportData.length}</p></div>
-                <div class="bg-white p-4 rounded-lg shadow"><p class="text-sm text-gray-600 mb-1">Total Air</p><p class="text-2xl font-bold text-cyan-600">${totalWater} L</p></div>
-                <div class="bg-white p-4 rounded-lg shadow"><p class="text-sm text-gray-600 mb-1">Rata-rata Durasi</p><p class="text-2xl font-bold text-green-600">${avgDuration}s</p></div>
-                <div class="bg-white p-4 rounded-lg shadow"><p class="text-sm text-gray-600 mb-1">Success Rate</p><p class="text-2xl font-bold text-purple-600">100%</p></div>
-            `;
-            document.getElementById('reportTableContainer').innerHTML = reportData.length === 0 ? 
-                '<div class="text-center py-12"><p class="text-6xl mb-4">📄</p><p class="text-gray-500 text-lg">Belum ada data siklus pencucian</p><p class="text-gray-400 text-sm mt-2">Mulai mesin untuk mencatat data</p></div>' :
-                `<div class="overflow-x-auto"><table class="w-full"><thead class="sticky top-0 bg-white"><tr class="bg-gray-100 border-b-2 border-gray-300">
-                <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">No</th>
-                <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">Mesin</th>
-                <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">Waktu Selesai</th>
-                <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">Air Digunakan</th>
-                <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">Durasi</th>
-                <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">Status</th>
-                </tr></thead><tbody>${reportData.slice().reverse().map((r, i) => 
-                `<tr class="border-b hover:bg-gray-50 transition-colors">
-                <td class="px-4 py-3 text-sm text-gray-700">${reportData.length - i}</td>
-                <td class="px-4 py-3 text-sm font-semibold text-gray-800">Mesin #${r.machineId}</td>
-                <td class="px-4 py-3 text-sm text-gray-700">${r.timestamp}</td>
-                <td class="px-4 py-3 text-sm text-gray-700">${r.waterUsed} Liter</td>
-                <td class="px-4 py-3 text-sm text-gray-700">${r.duration} detik</td>
-                <td class="px-4 py-3"><span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">${r.status}</span></td>
-                </tr>`).join('')}</tbody></table></div>`;
+        function getPhaseText(phase) {
+            const phases = {
+                'filling': '💧 Pengisian',
+                'washing': '🧼 Pencucian',
+                'draining': '🌊 Pembuangan',
+                'spinning': '🌀 Pengeringan',
+                'complete': '✅ Selesai',
+                'idle': '⏸️ Standby'
+            };
+            return phases[phase] || 'Standby';
         }
 
-        function render() {
-            renderStats();
-            renderMachines();
-            renderReport();
-            const btn = document.getElementById('autoModeBtn');
-            const icon = document.getElementById('autoModeIcon');
-            const text = document.getElementById('autoModeText');
-            if (autoMode) {
-                btn.className = 'bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center gap-2 transition-colors';
-                icon.textContent = '⏸';
-                text.textContent = 'Stop Auto';
-            } else {
-                btn.className = 'bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center gap-2 transition-colors';
-                icon.textContent = '▶';
-                text.textContent = 'Auto Mode';
-            }
-        }
-
-        setInterval(() => {
-            let updated = false;
+        // Machine Controls
+        function startMachine(id) {
+            const program = document.getElementById('washProgram').value;
+            const temp = document.getElementById('waterTemp').value;
+            
             machines = machines.map(m => {
-                if (m.status === 'running') {
-                    updated = true;
-                    let newM = { ...m };
-                    if (m.phase === 'filling' && m.waterLevel < 100) {
-                        newM.waterLevel = Math.min(100, m.waterLevel + 2);
-                        newM.timer = m.timer + 1;
-                        if (newM.waterLevel >= 100) {
-                            newM.phase = 'washing';
-                            newM.timer = 0;
-                            newM.detergent = true;
-                        }
-                    } else if (m.phase === 'washing') {
-                        newM.rpm = 400 + Math.sin(m.timer / 5) * 50;
-                        newM.timer = m.timer + 1;
-                        if (m.timer >= 60) {
-                            newM.phase = 'draining';
-                            newM.timer = 0;
-                            newM.rpm = 0;
-                        }
-                    } else if (m.phase === 'draining') {
-                        newM.waterLevel = Math.max(0, m.waterLevel - 3);
-                        newM.timer = m.timer + 1;
-                        newM.detergent = false;
-                        if (newM.waterLevel <= 0) {
-                            newM.phase = 'spinning';
-                            newM.timer = 0;
-                        }
-                    } else if (m.phase === 'spinning') {
-                        newM.rpm = Math.min(1200, m.rpm + 20);
-                        newM.timer = m.timer + 1;
-                        if (m.timer >= 45) {
-                            newM.status = 'complete';
-                            newM.phase = 'complete';
-                            newM.rpm = 0;
-                            newM.timer = 0;
-                            systemStats.totalCycles++;
-                            systemStats.waterUsage += 75;
-                            reportData.push({
-                                id: reportData.length + 1,
-                                machineId: m.id,
-                                timestamp: new Date().toLocaleString('id-ID'),
-                                waterUsed: 75,
-                                duration: 105,
-                                status: 'Success'
-                            });
-                        }
-                    }
-                    return newM;
+                if (m.id === id) {
+                    showNotification(`Mesin #${id} dimulai dengan program ${program}!`, 'success');
+                    return { ...m, status: 'running', phase: 'filling', timer: 0, waterLevel: 0, rpm: 0 };
                 }
                 return m;
             });
-            if (updated) render();
+            renderMachines();
+        }
+
+        function pauseMachine(id) {
+            machines = machines.map(m => m.id === id ? { ...m, status: 'paused' } : m);
+            showNotification(`Mesin #${id} dijeda`, 'warning');
+            renderMachines();
+        }
+
+        function stopMachine(id) {
+            machines = machines.map(m => m.id === id ? { ...m, status: 'idle', phase: 'idle', timer: 0, waterLevel: 0, rpm: 0 } : m);
+            showNotification(`Mesin #${id} dihentikan`, 'error');
+            renderMachines();
+        }
+
+        function resetMachine(id) {
+            machines = machines.map(m => m.id === id ? { ...m, status: 'idle', phase: 'idle', timer: 0, waterLevel: 0, rpm: 0 } : m);
+            showNotification(`Mesin #${id} direset`, 'info');
+            renderMachines();
+        }
+
+        function startAllMachines() {
+            machines = machines.map(m => ({ ...m, status: 'running', phase: 'filling', timer: 0, waterLevel: 0, rpm: 0 }));
+            showNotification('Semua mesin dimulai!', 'success');
+            renderMachines();
+        }
+
+        function stopAllMachines() {
+            machines = machines.map(m => ({ ...m, status: 'idle', phase: 'idle', timer: 0, waterLevel: 0, rpm: 0 }));
+            showNotification('Semua mesin dihentikan!', 'warning');
+            renderMachines();
+        }
+
+        function emergencyStop() {
+            machines = machines.map(m => ({ ...m, status: 'idle', phase: 'idle', timer: 0, waterLevel: 0, rpm: 0 }));
+            showNotification('🚨 EMERGENCY STOP ACTIVATED! 🚨', 'error');
+            renderMachines();
+        }
+
+        // Machine Simulation Loop
+        setInterval(() => {
+            let updated = false;
+            machines = machines.map(machine => {
+                if (machine.status === 'running') {
+                    updated = true;
+                    let newMachine = { ...machine };
+                    const maxRPM = parseInt(document.getElementById('spinSpeed').value);
+                    const tempSetting = document.getElementById('waterTemp').value;
+                    const targetTemp = tempSetting === 'hot' ? 60 : tempSetting === 'warm' ? 40 : 20;
+                    
+                    // Filling Phase
+                    if (machine.phase === 'filling' && machine.waterLevel < 100) {
+                        newMachine.waterLevel = Math.min(100, machine.waterLevel + 2);
+                        newMachine.timer = machine.timer + 1;
+                        newMachine.temp = Math.min(targetTemp, machine.temp + 0.5);
+                        if (newMachine.waterLevel >= 100) {
+                            newMachine.phase = 'washing';
+                            newMachine.timer = 0;
+                            newMachine.detergent = true;
+                        }
+                    }
+                    // Washing Phase
+                    else if (machine.phase === 'washing') {
+                        newMachine.rpm = 400 + Math.sin(machine.timer / 5) * 50;
+                        newMachine.timer = machine.timer + 1;
+                        if (machine.timer >= 60) {
+                            newMachine.phase = 'draining';
+                            newMachine.timer = 0;
+                            newMachine.rpm = 0;
+                        }
+                    }
+                    // Draining Phase
+                    else if (machine.phase === 'draining') {
+                        newMachine.waterLevel = Math.max(0, machine.waterLevel - 3);
+                        newMachine.timer = machine.timer + 1;
+                        newMachine.detergent = false;
+                        if (newMachine.waterLevel <= 0) {
+                            newMachine.phase = 'spinning';
+                            newMachine.timer = 0;
+                        }
+                    }
+                    // Spinning Phase
+                    else if (machine.phase === 'spinning') {
+                        newMachine.rpm = Math.min(maxRPM, machine.rpm + 20);
+                        newMachine.timer = machine.timer + 1;
+                        if (machine.timer >= 45) {
+                            newMachine.status = 'complete';
+                            newMachine.phase = 'complete';
+                            newMachine.rpm = 0;
+                            newMachine.timer = 0;
+                            
+                            // Add to report
+                            const program = document.getElementById('washProgram').value;
+                            const temp = document.getElementById('waterTemp').value;
+                            addToReport(machine.id, program, temp);
+                            
+                            totalCycles++;
+                            waterUsage += 75;
+                            
+                            showNotification(`Mesin #${machine.id} selesai! ✅`, 'success');
+                        }
+                    }
+                    
+                    return newMachine;
+                }
+                return machine;
+            });
+            
+            if (updated) {
+                renderMachines();
+                updateStats();
+                updateChart();
+            }
         }, 100);
 
-        document.getElementById('autoModeBtn').addEventListener('click', toggleAutoMode);
-        document.getElementById('clearReportBtn').addEventListener('click', clearReport);
-        document.getElementById('exportReportBtn').addEventListener('click', exportReport);
-        render();
+        // Update Statistics
+        function updateStats() {
+            const active = machines.filter(m => m.status === 'running').length;
+            document.getElementById('activeMachines').textContent = `${active}/4`;
+            document.getElementById('totalCycles').textContent = totalCycles;
+            document.getElementById('waterUsage').textContent = waterUsage + 'L';
+            
+            const efficiency = totalCycles > 0 ? Math.min(100, Math.round((totalCycles / (totalCycles + machines.filter(m => m.status === 'idle').length)) * 100)) : 100;
+            document.getElementById('efficiency').textContent = efficiency + '%';
+            
+            const avgTemp = Math.round(machines.reduce((acc, m) => acc + m.temp, 0) / machines.length);
+            document.getElementById('avgTemp').textContent = avgTemp + '°C';
+        }
+
+        // Chart Setup
+        function initChart() {
+            const ctx = document.getElementById('performanceChart');
+            if (!ctx) return;
+            
+            // Simple canvas-based chart
+            const canvas = ctx;
+            const context = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = 200;
+            
+            setInterval(() => {
+                performanceData.push({
+                    active: machines.filter(m => m.status === 'running').length,
+                    time: new Date().toLocaleTimeString()
+                });
+                
+                if (performanceData.length > 20) performanceData.shift();
+                
+                // Clear canvas
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw grid
+                context.strokeStyle = 'rgba(255,255,255,0.1)';
+                context.lineWidth = 1;
+                for (let i = 0; i <= 4; i++) {
+                    const y = (canvas.height / 4) * i;
+                    context.beginPath();
+                    context.moveTo(0, y);
+                    context.lineTo(canvas.width, y);
+                    context.stroke();
+                }
+                
+                // Draw line
+                if (performanceData.length > 1) {
+                    context.strokeStyle = '#22c55e';
+                    context.lineWidth = 3;
+                    context.beginPath();
+                    
+                    performanceData.forEach((data, i) => {
+                        const x = (canvas.width / 20) * i;
+                        const y = canvas.height - (data.active / 4 * canvas.height);
+                        
+                        if (i === 0) context.moveTo(x, y);
+                        else context.lineTo(x, y);
+                    });
+                    
+                    context.stroke();
+                    
+                    // Fill area
+                    context.lineTo(canvas.width, canvas.height);
+                    context.lineTo(0, canvas.height);
+                    context.closePath();
+                    context.fillStyle = 'rgba(34, 197, 94, 0.2)';
+                    context.fill();
+                }
+            }, 2000);
+        }
+
+        function updateChart() {
+            // Chart updates in initChart interval
+        }
+
+        // Report Functions
+        function addToReport(machineId, program, temp) {
+            const tempMap = { cold: '20°C', warm: '40°C', hot: '60°C' };
+            const programMap = { normal: 'Normal', quick: 'Quick', heavy: 'Heavy Duty', delicate: 'Delicate' };
+            
+            reportData.push({
+                id: reportData.length + 1,
+                machineId: machineId,
+                timestamp: new Date().toLocaleString('id-ID'),
+                program: programMap[program],
+                waterUsed: 75,
+                duration: 105,
+                temp: tempMap[temp],
+                status: 'Success'
+            });
+            
+            updateReportTable();
+        }
+
+        function updateReportTable() {
+            const tbody = document.getElementById('reportTableBody');
+            
+            if (reportData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-12 text-gray-400">
+                            <div class="text-6xl mb-4">📋</div>
+                            Belum ada data siklus pencucian
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = reportData.slice().reverse().map((record, index) => `
+                    <tr class="hover:bg-gray-800 transition">
+                        <td class="px-4 py-3">${reportData.length - index}</td>
+                        <td class="px-4 py-3 font-bold">Mesin #${record.machineId}</td>
+                        <td class="px-4 py-3">${record.timestamp}</td>
+                        <td class="px-4 py-3">${record.program}</td>
+                        <td class="px-4 py-3">${record.waterUsed}L</td>
+                        <td class="px-4 py-3">${record.duration}s</td>
+                        <td class="px-4 py-3">${record.temp}</td>
+                        <td class="px-4 py-3">
+                            <span class="bg-green-500 px-3 py-1 rounded-full text-xs font-bold">${record.status}</span>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            
+            // Update summary
+            document.getElementById('reportTotalCycles').textContent = reportData.length;
+            document.getElementById('reportTotalWater').textContent = reportData.reduce((acc, r) => acc + r.waterUsed, 0) + 'L';
+            const avgDuration = reportData.length > 0 ? Math.round(reportData.reduce((acc, r) => acc + r.duration, 0) / reportData.length) : 0;
+            document.getElementById('reportAvgDuration').textContent = avgDuration + 's';
+        }
+
+        function clearReport() {
+            if (confirm('Hapus semua data laporan?')) {
+                reportData = [];
+                updateReportTable();
+                showNotification('Data laporan dihapus', 'info');
+            }
+        }
+
+        // Export Functions
+        function exportWord() {
+            const totalWater = reportData.reduce((acc, r) => acc + r.waterUsed, 0);
+            const avgDuration = reportData.length > 0 ? Math.round(reportData.reduce((acc, r) => acc + r.duration, 0) / reportData.length) : 0;
+            
+            const html = `
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+                <head><meta charset='utf-8'><title>Laporan SCADA</title>
+                <style>
+                    body { font-family: Calibri; }
+                    .header { text-align: center; margin-bottom: 30px; background: linear-gradient(135deg, #10b981, #ec4899); padding: 20px; color: white; }
+                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                    th { background: linear-gradient(135deg, #10b981, #ec4899); color: white; padding: 12px; border: 1px solid #ddd; }
+                    td { padding: 10px; border: 1px solid #ddd; }
+                    tr:nth-child(even) { background-color: #f9f9f9; }
+                    .summary { background: #f0fdf4; padding: 15px; margin: 20px 0; border-left: 4px solid #10b981; }
+                </style>
+                </head>
+                <body>
+                    <div class='header'>
+                        <h1>🔧 LAPORAN SCADA MONITORING SYSTEM 🔧</h1>
+                        <p>Mesin Cuci Industri Premium - 4 Unit Tabung</p>
+                        <p>Tanggal: ${new Date().toLocaleString('id-ID')}</p>
+                    </div>
+                    
+                    <div class='summary'>
+                        <h3>📊 RINGKASAN OPERASIONAL</h3>
+                        <p><b>Total Siklus:</b> ${reportData.length} siklus</p>
+                        <p><b>Total Air:</b> ${totalWater} Liter</p>
+                        <p><b>Rata-rata Durasi:</b> ${avgDuration} detik</p>
+                        <p><b>Success Rate:</b> 100%</p>
+                    </div>
+                    
+                    <h3>📋 DETAIL SIKLUS PENCUCIAN</h3>
+                    <table>
+                        <thead><tr>
+                            <th>No</th><th>Mesin</th><th>Waktu</th><th>Program</th><th>Air</th><th>Durasi</th><th>Suhu</th><th>Status</th>
+                        </tr></thead>
+                        <tbody>
+                            ${reportData.map((r, i) => `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td>Mesin #${r.machineId}</td>
+                                    <td>${r.timestamp}</td>
+                                    <td>${r.program}</td>
+                                    <td>${r.waterUsed}L</td>
+                                    <td>${r.duration}s</td>
+                                    <td>${r.temp}</td>
+                                    <td>${r.status}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `;
+            
+            const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `SCADA-Report-${new Date().toISOString().split('T')[0]}.doc`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showNotification('Report Word berhasil diexport! 📝', 'success');
+        }
+
+        function exportPDF() {
+            showNotification('Export PDF akan segera tersedia! 📄', 'info');
+        }
+
+        function exportExcel() {
+            showNotification('Export Excel akan segera tersedia! 📊', 'info');
+        }
+
+        // Initialize
+        renderMachines();
+        updateStats();
+        initChart();
+        
+        // Auto mode handling
+        document.getElementById('operationMode').addEventListener('change', function(e) {
+            if (e.target.value === 'auto') {
+                showNotification('Mode Otomatis Aktif! 🤖', 'success');
+                setInterval(() => {
+                    const idleMachines = machines.filter(m => m.status === 'idle' || m.status === 'complete');
+                    if (idleMachines.length > 0) {
+                        startMachine(idleMachines[0].id);
+                    }
+                }, 5000);
+            }
+        });
     </script>
 </body>
     </html>
